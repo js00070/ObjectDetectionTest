@@ -116,7 +116,9 @@ import cv2
 
 video_src = '1.mp4'
 
-cap = cv2.VideoCapture(0)
+#　cap = cv2.VideoCapture(video_src) # 从视频文件读取
+
+cap = cv2.VideoCapture(0) # 从usb摄像头读取
 
 while True:
   ret, img = cap.read()
