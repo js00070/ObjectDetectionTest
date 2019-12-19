@@ -16,6 +16,8 @@ from object_detection.utils import ops as utils_ops
 from object_detection.utils import label_map_util
 from object_detection.utils import visualization_utils as vis_util
 
+import ssr_interface
+
 # patch tf1 into `utils.ops`
 utils_ops.tf = tf.compat.v1
 
@@ -120,6 +122,8 @@ video_src = '1.mp4'
 
 cap = cv2.VideoCapture(0) # 从usb摄像头读取
 
+personExist = False
+
 while True:
   ret, img = cap.read()
   if (type(img) == type(None)):
@@ -129,13 +133,40 @@ while True:
   output_dict = run_inference_for_single_image(detection_model, image_np)
   res = []
   for i in range(len(output_dict['detection_classes'])):
-    if output_dict['detection_scores'][i] >= 0.50:
-      # print("class {}, score {}, box {}".format(output_dict['detection_classes'][i], output_dict['detection_scores'][i], output_dict['detection_boxes'][i]))
+    if output_dict['detection_scores'][i] >= 0.70: # 阈值可以调整
       if output_dict['detection_classes'][i]==1:
         res.append(output_dict['detection_boxes'][i])
-  # print("==================")
+
+  if len(res)>0:
+    a,b,c,d = res[0] # a是左上角的点距离顶边的距离，b是左上角的点距离左侧边的距离，cd分别是右下角的点距离顶边与左侧边的距离
+    print("a,b,c,d = {},{},{},{}".format(a,b,c,d))
+
+    # 具体的坐标计算方法需要实地测量，这里只是先随便赋一下值
+    X = (b+d)/2 - 0.5
+    Y = 1 # Y值需要测距然后用相似三角形来算。。。
+    Z = 0 # Z值也一样
+
+    if not personExist:
+      ssr_interface.NewSource({
+        "id": "person",
+        "name": "person",
+        "port-number": 1,
+        "pos": [X,Y,Z],
+        "volume": 0.1
+      })
+      personExist = True
+    else:
+      ssr_interface.ModSource("person",{
+        "pos": [X,Y,Z]
+      })
+  else:
+    if personExist:
+      ssr_interface.DeleteSource("person")
+      personExist = False
+
   for (a,b,c,d) in res:
     cv2.rectangle(img,(int(b*width),int(a*height)),(int(d*width),int(c*height)),(0,255,210),4)
+
   cv2.imshow('video', img)
   if cv2.waitKey(33) == 27:
     break
